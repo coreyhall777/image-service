@@ -1,6 +1,11 @@
 import express, { Request, Response } from 'express';
+import { requestLogger } from './middleware/requestLogger.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
+
+// Request logger (before body parsers to ensure all requests are logged)
+app.use(requestLogger);
 
 // Middleware
 app.use(express.json());
@@ -22,5 +27,8 @@ app.use((_req: Request, res: Response) => {
     message: 'The requested endpoint does not exist',
   });
 });
+
+// Global error handler (must be last)
+app.use(errorHandler);
 
 export default app;

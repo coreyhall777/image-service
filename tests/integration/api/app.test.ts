@@ -18,4 +18,15 @@ describe('API Endpoints', () => {
     expect(response.status).toBe(404);
     expect(response.body).toHaveProperty('error', 'Not Found');
   });
+
+  it('should handle malformed JSON with 400 error', async () => {
+    const response = await request(app)
+      .post('/')
+      .set('Content-Type', 'application/json')
+      .send('{ invalid json }');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('error', 'BadRequest');
+    expect(response.body.message).toMatch(/JSON/i);
+  });
 });
