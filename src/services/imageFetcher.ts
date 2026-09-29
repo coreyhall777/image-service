@@ -60,124 +60,137 @@ export class ImageFetcher {
         }
       };
 
-      // Set total deadline timer
-      totalDeadlineTimer = setTimeout(() => {
-        request.destroy();
-        safeReject(
-          new UnprocessableEntityError(
-            `Request timeout: Total fetch time exceeded ${CONFIG.REQUEST_TIMEOUT}ms`
-          )
-        );
-      }, CONFIG.REQUEST_TIMEOUT);
+      let request: http.ClientRequest;
 
-      const request = client.get(
-        urlString,
-        {
-          headers: {
-            'User-Agent': 'ImageProcessingService/1.0',
+      try {
+        request = client.get(
+          urlString,
+          {
+            headers: {
+              'User-Agent': 'ImageProcessingService/1.0',
+            },
           },
-        },
-        (response) => {
-          // Handle redirects
-          if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400) {
-            request.destroy();
-            safeReject(
-              new BadRequestError(
-                'URL redirects are not supported. Please provide the direct image URL'
-              )
-            );
-            return;
-          }
-
-          // Check HTTP status
-          if (!response.statusCode || response.statusCode !== 200) {
-            request.destroy();
-            safeReject(
-              new UnprocessableEntityError(
-                `Failed to fetch image: HTTP ${response.statusCode || 'error'}`
-              )
-            );
-            return;
-          }
-
-          // Validate content type
-          const contentType = response.headers['content-type']?.toLowerCase() || '';
-          if (!ALLOWED_CONTENT_TYPES.some((type) => contentType.startsWith(type))) {
-            request.destroy();
-            safeReject(
-              new UnprocessableEntityError(
-                `Unsupported content type: ${contentType}. Only JPEG, PNG, and WebP images are supported`
-              )
-            );
-            return;
-          }
-
-          // Check content length header if available
-          const contentLength = response.headers['content-length']
-            ? parseInt(response.headers['content-length'], 10)
-            : null;
-
-          if (contentLength && contentLength > CONFIG.MAX_IMAGE_SIZE) {
-            request.destroy();
-            safeReject(
-              new UnprocessableEntityError(
-                `Image size (${contentLength} bytes) exceeds maximum allowed size (${CONFIG.MAX_IMAGE_SIZE} bytes)`
-              )
-            );
-            return;
-          }
-
-          // Collect response data
-          const chunks: Buffer[] = [];
-          let receivedBytes = 0;
-
-          response.on('data', (chunk: Buffer) => {
-            if (rejected) return;
-
-            receivedBytes += chunk.length;
-
-            // Check size limit during download
-            if (receivedBytes > CONFIG.MAX_IMAGE_SIZE) {
+          (response) => {
+            // Handle redirects
+            if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400) {
               request.destroy();
               safeReject(
-                new UnprocessableEntityError(
-                  `Image size exceeds maximum allowed size (${CONFIG.MAX_IMAGE_SIZE} bytes)`
+                new BadRequestError(
+                  'URL redirects are not supported. Please provide the direct image URL'
                 )
               );
               return;
             }
 
-            chunks.push(chunk);
-          });
+            // Check HTTP status
+            if (!response.statusCode || response.statusCode !== 200) {
+              request.destroy();
+              safeReject(
+                new UnprocessableEntityError(
+                  `Failed to fetch image: HTTP ${response.statusCode || 'error'}`
+                )
+              );
+              return;
+            }
 
-          response.on('end', () => {
-            if (rejected) return;
+            // Validate content type
+            const contentType = response.headers['content-type']?.toLowerCase() || '';
+            if (!ALLOWED_CONTENT_TYPES.some((type) => contentType.startsWith(type))) {
+              request.destroy();
+              safeReject(
+                new UnprocessableEntityError(
+                  `Unsupported content type: ${contentType}. Only JPEG, PNG, and WebP images are supported`
+                )
+              );
+              return;
+            }
 
-            const buffer = Buffer.concat(chunks);
-            safeResolve({
-              buffer,
-              contentType: contentType.split(';')[0].trim(),
-              contentLength: buffer.length,
+            // Check content length header if available
+            const contentLength = response.headers['content-length']
+              ? parseInt(response.headers['content-length'], 10)
+              : null;
+
+            if (contentLength && contentLength > CONFIG.MAX_IMAGE_SIZE) {
+              request.destroy();
+              safeReject(
+                new UnprocessableEntityError(
+                  `Image size (${contentLength} bytes) exceeds maximum allowed size (${CONFIG.MAX_IMAGE_SIZE} bytes)`
+                )
+              );
+              return;
+            }
+
+            // Collect response data
+            const chunks: Buffer[] = [];
+            let receivedBytes = 0;
+
+            response.on('data', (chunk: Buffer) => {
+              if (rejected) return;
+
+              receivedBytes += chunk.length;
+
+              // Check size limit during download
+              if (receivedBytes > CONFIG.MAX_IMAGE_SIZE) {
+                request.destroy();
+                safeReject(
+                  new UnprocessableEntityError(
+                    `Image size exceeds maximum allowed size (${CONFIG.MAX_IMAGE_SIZE} bytes)`
+                  )
+                );
+                return;
+              }
+
+              chunks.push(chunk);
             });
-          });
 
-          response.on('error', (error) => {
-            safeReject(new UnprocessableEntityError(`Failed to download image: ${error.message}`));
-          });
-        }
-      );
+            response.on('end', () => {
+              if (rejected) return;
 
-      request.on('error', (error: NodeJS.ErrnoException) => {
-        if (error.code === 'ENOTFOUND') {
-          safeReject(new BadRequestError('URL host not found'));
-        } else if (error.code === 'ECONNREFUSED') {
-          safeReject(new BadRequestError('Connection refused by host'));
-        } else if (error.code === 'ETIMEDOUT') {
-          safeReject(new UnprocessableEntityError('Connection timeout'));
-        } else {
-          safeReject(new UnprocessableEntityError(`Failed to fetch image: ${error.message}`));
-        }
-      });
+              const buffer = Buffer.concat(chunks);
+              safeResolve({
+                buffer,
+                contentType: contentType.split(';')[0].trim(),
+                contentLength: buffer.length,
+              });
+            });
+
+            response.on('error', (error) => {
+              safeReject(
+                new UnprocessableEntityError(`Failed to download image: ${error.message}`)
+              );
+            });
+          }
+        );
+
+        request.on('error', (error: NodeJS.ErrnoException) => {
+          if (error.code === 'ENOTFOUND') {
+            safeReject(new BadRequestError('URL host not found'));
+          } else if (error.code === 'ECONNREFUSED') {
+            safeReject(new BadRequestError('Connection refused by host'));
+          } else if (error.code === 'ETIMEDOUT') {
+            safeReject(new UnprocessableEntityError('Connection timeout'));
+          } else {
+            safeReject(new UnprocessableEntityError(`Failed to fetch image: ${error.message}`));
+          }
+        });
+
+        // Set total deadline timer after request is created
+        totalDeadlineTimer = setTimeout(() => {
+          request.destroy();
+          safeReject(
+            new UnprocessableEntityError(
+              `Request timeout: Total fetch time exceeded ${CONFIG.REQUEST_TIMEOUT}ms`
+            )
+          );
+        }, CONFIG.REQUEST_TIMEOUT);
+      } catch (error) {
+        cleanup();
+        reject(
+          new UnprocessableEntityError(
+            `Failed to create request: ${error instanceof Error ? error.message : 'Unknown error'}`
+          )
+        );
+      }
     });
   }
 }
