@@ -36,18 +36,43 @@ export class ImageFetcher {
     return new Promise((resolve, reject) => {
       const client = parsedUrl.protocol === 'https:' ? https : http;
       let rejected = false;
+      let totalDeadlineTimer: NodeJS.Timeout | null = null;
+
+      const cleanup = () => {
+        if (totalDeadlineTimer) {
+          clearTimeout(totalDeadlineTimer);
+          totalDeadlineTimer = null;
+        }
+      };
 
       const safeReject = (error: Error) => {
         if (!rejected) {
           rejected = true;
+          cleanup();
           reject(error);
         }
       };
 
+      const safeResolve = (result: FetchImageResult) => {
+        if (!rejected) {
+          cleanup();
+          resolve(result);
+        }
+      };
+
+      // Set total deadline timer
+      totalDeadlineTimer = setTimeout(() => {
+        request.destroy();
+        safeReject(
+          new UnprocessableEntityError(
+            `Request timeout: Total fetch time exceeded ${CONFIG.REQUEST_TIMEOUT}ms`
+          )
+        );
+      }, CONFIG.REQUEST_TIMEOUT);
+
       const request = client.get(
         urlString,
         {
-          timeout: CONFIG.REQUEST_TIMEOUT,
           headers: {
             'User-Agent': 'ImageProcessingService/1.0',
           },
@@ -129,7 +154,7 @@ export class ImageFetcher {
             if (rejected) return;
 
             const buffer = Buffer.concat(chunks);
-            resolve({
+            safeResolve({
               buffer,
               contentType: contentType.split(';')[0].trim(),
               contentLength: buffer.length,
@@ -141,15 +166,6 @@ export class ImageFetcher {
           });
         }
       );
-
-      request.on('timeout', () => {
-        request.destroy();
-        safeReject(
-          new UnprocessableEntityError(
-            `Request timeout: Image took longer than ${CONFIG.REQUEST_TIMEOUT}ms to fetch`
-          )
-        );
-      });
 
       request.on('error', (error: NodeJS.ErrnoException) => {
         if (error.code === 'ENOTFOUND') {
