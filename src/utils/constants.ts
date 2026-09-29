@@ -49,6 +49,8 @@ export const CONFIG = {
   PORT: parsePositiveInt(process.env.PORT, 3000, 'PORT', 65535),
   MAX_IMAGE_SIZE: parsePositiveInt(process.env.MAX_IMAGE_SIZE, 10 * 1024 * 1024, 'MAX_IMAGE_SIZE'), // 10MB
   REQUEST_TIMEOUT: parsePositiveInt(process.env.REQUEST_TIMEOUT, 10000, 'REQUEST_TIMEOUT'), // 10 seconds
+  CACHE_MAX_SIZE: parsePositiveInt(process.env.CACHE_MAX_SIZE, 100 * 1024 * 1024, 'CACHE_MAX_SIZE'), // 100MB
+  CACHE_TTL: parsePositiveInt(process.env.CACHE_TTL, 3600, 'CACHE_TTL'), // 1 hour
   SUPPORTED_IMAGE_FORMATS: ['jpeg', 'jpg', 'png', 'webp'] as const,
   SUPPORTED_CROP_MODES: ['fill', 'fit', 'contain'] as const,
   DEFAULT_QUALITY: 80,

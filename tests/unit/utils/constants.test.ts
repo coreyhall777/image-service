@@ -17,6 +17,13 @@ describe('CONFIG constants', () => {
       'Testing with REQUEST_TIMEOUT:',
       process.env.REQUEST_TIMEOUT || 'undefined (using default)'
     );
+    // eslint-disable-next-line no-console
+    console.log(
+      'Testing with CACHE_MAX_SIZE:',
+      process.env.CACHE_MAX_SIZE || 'undefined (using default)'
+    );
+    // eslint-disable-next-line no-console
+    console.log('Testing with CACHE_TTL:', process.env.CACHE_TTL || 'undefined (using default)');
   });
 
   it('should have PORT as a number', () => {
@@ -39,6 +46,16 @@ describe('CONFIG constants', () => {
     expect(CONFIG.REQUEST_TIMEOUT).toBeGreaterThan(0);
   });
 
+  it('should have CACHE_MAX_SIZE as a positive number', () => {
+    expect(typeof CONFIG.CACHE_MAX_SIZE).toBe('number');
+    expect(CONFIG.CACHE_MAX_SIZE).toBeGreaterThan(0);
+  });
+
+  it('should have CACHE_TTL as a positive number', () => {
+    expect(typeof CONFIG.CACHE_TTL).toBe('number');
+    expect(CONFIG.CACHE_TTL).toBeGreaterThan(0);
+  });
+
   it('should have correct default or configured values', () => {
     // When no env vars are set, should use defaults
     // When env vars ARE set (from operator), should use those values
@@ -54,10 +71,20 @@ describe('CONFIG constants', () => {
       expect(CONFIG.REQUEST_TIMEOUT).toBe(10000); // 10 seconds default
     }
 
+    if (!process.env.CACHE_MAX_SIZE) {
+      expect(CONFIG.CACHE_MAX_SIZE).toBe(100 * 1024 * 1024); // 100MB default
+    }
+
+    if (!process.env.CACHE_TTL) {
+      expect(CONFIG.CACHE_TTL).toBe(3600); // 1 hour default
+    }
+
     // All values should be safe integers
     expect(Number.isSafeInteger(CONFIG.PORT)).toBe(true);
     expect(Number.isSafeInteger(CONFIG.MAX_IMAGE_SIZE)).toBe(true);
     expect(Number.isSafeInteger(CONFIG.REQUEST_TIMEOUT)).toBe(true);
+    expect(Number.isSafeInteger(CONFIG.CACHE_MAX_SIZE)).toBe(true);
+    expect(Number.isSafeInteger(CONFIG.CACHE_TTL)).toBe(true);
   });
 
   it('should have correct image format constants', () => {

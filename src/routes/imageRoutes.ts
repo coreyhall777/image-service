@@ -3,6 +3,7 @@ import { validate } from '../middleware/validation.js';
 import { imageProcessingSchema } from '../schemas/imageProcessing.schema.js';
 import { ImageFetcher } from '../services/imageFetcher.js';
 import { ImageProcessor } from '../services/imageProcessor.js';
+import { imageCache } from '../services/cache.js';
 import { BadRequestError } from '../utils/errors.js';
 
 const router = Router();
@@ -30,6 +31,28 @@ router.get(
         throw new BadRequestError('URL parameter is required');
       }
 
+      // Generate cache key
+      const cacheKey = imageCache.generateKey({
+        url,
+        width: width as number | undefined,
+        height: height as number | undefined,
+        format: format as string | undefined,
+        quality: quality as number | undefined,
+        crop: crop as string | undefined,
+      });
+
+      // Check cache
+      const cached = imageCache.get(cacheKey);
+      if (cached) {
+        res.set('Content-Type', cached.contentType);
+        res.set('Cache-Control', 'public, no-cache');
+        res.set('X-Image-Width', cached.metadata.width.toString());
+        res.set('X-Image-Height', cached.metadata.height.toString());
+        res.set('X-Cache', 'HIT');
+        res.send(cached.buffer);
+        return;
+      }
+
       // Fetch image
       const imageFetcher = new ImageFetcher();
       const fetchResult = await imageFetcher.fetch(url);
@@ -44,11 +67,22 @@ router.get(
         crop: crop as 'cover' | 'contain' | 'fill' | undefined,
       });
 
+      // Store in cache
+      imageCache.set(cacheKey, {
+        buffer: result.buffer,
+        contentType: result.contentType,
+        metadata: {
+          width: result.width,
+          height: result.height,
+        },
+      });
+
       // Send response with appropriate headers
       res.set('Content-Type', result.contentType);
       res.set('Cache-Control', 'public, no-cache');
       res.set('X-Image-Width', result.width.toString());
       res.set('X-Image-Height', result.height.toString());
+      res.set('X-Cache', 'MISS');
       res.send(result.buffer);
     } catch (error) {
       next(error);

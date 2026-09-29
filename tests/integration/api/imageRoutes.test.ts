@@ -3,6 +3,7 @@ import request from 'supertest';
 import app from '../../../src/app';
 import { ImageFetcher } from '../../../src/services/imageFetcher';
 import { ImageProcessor } from '../../../src/services/imageProcessor';
+import { imageCache } from '../../../src/services/cache';
 import sharp from 'sharp';
 
 // Mock the services
@@ -25,8 +26,9 @@ describe('GET /process', () => {
       .png()
       .toBuffer();
 
-    // Reset mocks
+    // Reset mocks and clear cache
     vi.clearAllMocks();
+    imageCache.clear();
   });
 
   afterEach(() => {
@@ -61,6 +63,7 @@ describe('GET /process', () => {
       expect(response.header['cache-control']).toBe('public, no-cache');
       expect(response.header['x-image-width']).toBe('200');
       expect(response.header['x-image-height']).toBe('150');
+      expect(response.header['x-cache']).toBe('MISS');
       expect(Buffer.isBuffer(response.body)).toBe(true);
 
       expect(mockFetch).toHaveBeenCalledWith('https://example.com/image.png');
@@ -243,6 +246,133 @@ describe('GET /process', () => {
 
       expect(response.status).toBe(422);
       expect(response.body.message).toContain('Failed to process image');
+    });
+  });
+
+  describe('Cache behavior', () => {
+    it('should return cache MISS on first request', async () => {
+      vi.spyOn(ImageFetcher.prototype, 'fetch').mockResolvedValue({
+        buffer: mockImageBuffer,
+        contentType: 'image/png',
+        contentLength: mockImageBuffer.length,
+      });
+      vi.spyOn(ImageProcessor.prototype, 'process').mockResolvedValue({
+        buffer: mockImageBuffer,
+        contentType: 'image/jpeg',
+        width: 200,
+        height: 150,
+      });
+
+      const response = await request(app).get('/process').query({
+        url: 'https://example.com/cache-test.png',
+        width: 200,
+        height: 150,
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.header['x-cache']).toBe('MISS');
+    });
+
+    it('should return cache HIT on second identical request', async () => {
+      const mockFetch = vi.spyOn(ImageFetcher.prototype, 'fetch').mockResolvedValue({
+        buffer: mockImageBuffer,
+        contentType: 'image/png',
+        contentLength: mockImageBuffer.length,
+      });
+      const mockProcess = vi.spyOn(ImageProcessor.prototype, 'process').mockResolvedValue({
+        buffer: mockImageBuffer,
+        contentType: 'image/jpeg',
+        width: 200,
+        height: 150,
+      });
+
+      const query = {
+        url: 'https://example.com/cache-hit-test.png',
+        width: 200,
+        height: 150,
+        format: 'jpeg',
+      };
+
+      // First request - cache MISS
+      const response1 = await request(app).get('/process').query(query);
+      expect(response1.status).toBe(200);
+      expect(response1.header['x-cache']).toBe('MISS');
+
+      // Second request - cache HIT
+      const response2 = await request(app).get('/process').query(query);
+      expect(response2.status).toBe(200);
+      expect(response2.header['x-cache']).toBe('HIT');
+
+      // Should only fetch and process once
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockProcess).toHaveBeenCalledTimes(1);
+    });
+
+    it('should cache miss for different parameters', async () => {
+      const mockFetch = vi.spyOn(ImageFetcher.prototype, 'fetch').mockResolvedValue({
+        buffer: mockImageBuffer,
+        contentType: 'image/png',
+        contentLength: mockImageBuffer.length,
+      });
+      const mockProcess = vi.spyOn(ImageProcessor.prototype, 'process').mockResolvedValue({
+        buffer: mockImageBuffer,
+        contentType: 'image/jpeg',
+        width: 200,
+        height: 150,
+      });
+
+      const baseQuery = { url: 'https://example.com/diff-params.png' };
+
+      // First request with width=200
+      const response1 = await request(app)
+        .get('/process')
+        .query({ ...baseQuery, width: 200 });
+      expect(response1.status).toBe(200);
+      expect(response1.header['x-cache']).toBe('MISS');
+
+      // Second request with width=300 - different params, should be MISS
+      const response2 = await request(app)
+        .get('/process')
+        .query({ ...baseQuery, width: 300 });
+      expect(response2.status).toBe(200);
+      expect(response2.header['x-cache']).toBe('MISS');
+
+      // Both should fetch and process
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockProcess).toHaveBeenCalledTimes(2);
+    });
+
+    it('should serve cached image with correct headers', async () => {
+      vi.spyOn(ImageFetcher.prototype, 'fetch').mockResolvedValue({
+        buffer: mockImageBuffer,
+        contentType: 'image/png',
+        contentLength: mockImageBuffer.length,
+      });
+      vi.spyOn(ImageProcessor.prototype, 'process').mockResolvedValue({
+        buffer: mockImageBuffer,
+        contentType: 'image/webp',
+        width: 300,
+        height: 250,
+      });
+
+      const query = {
+        url: 'https://example.com/headers-test.png',
+        width: 300,
+        format: 'webp',
+      };
+
+      // First request
+      await request(app).get('/process').query(query);
+
+      // Second request - from cache
+      const response = await request(app).get('/process').query(query);
+
+      expect(response.status).toBe(200);
+      expect(response.header['x-cache']).toBe('HIT');
+      expect(response.header['content-type']).toBe('image/webp');
+      expect(response.header['x-image-width']).toBe('300');
+      expect(response.header['x-image-height']).toBe('250');
+      expect(Buffer.isBuffer(response.body)).toBe(true);
     });
   });
 });
