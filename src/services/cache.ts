@@ -132,7 +132,7 @@ export class ImageCache {
   private evictLRU(): void {
     // First key in Map is the least recently used
     const firstKey = this.cache.keys().next().value;
-    if (firstKey) {
+    if (firstKey !== undefined) {
       this.delete(firstKey);
     }
   }

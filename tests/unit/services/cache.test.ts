@@ -307,5 +307,32 @@ describe('ImageCache', () => {
       expect(entry).not.toBeNull();
       expect(entry?.buffer.length).toBe(0);
     });
+
+    it('should handle empty string key without infinite loop', () => {
+      const smallCache = new ImageCache(1, 60); // Very small cache (1 byte)
+
+      // Add entry with empty string key (1 byte)
+      smallCache.set('', {
+        buffer: Buffer.alloc(1),
+        contentType: 'image/jpeg',
+        metadata: { width: 100, height: 100 },
+      });
+
+      expect(smallCache.get('')).not.toBeNull();
+      expect(smallCache.getStats().count).toBe(1);
+
+      // Add another entry that requires eviction (1 byte)
+      // This should evict the empty string key without hanging
+      smallCache.set('key2', {
+        buffer: Buffer.alloc(1),
+        contentType: 'image/jpeg',
+        metadata: { width: 100, height: 100 },
+      });
+
+      // Should evict empty string key and not hang
+      expect(smallCache.get('')).toBeNull();
+      expect(smallCache.get('key2')).not.toBeNull();
+      expect(smallCache.getStats().count).toBe(1);
+    });
   });
 });
