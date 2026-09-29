@@ -64,9 +64,9 @@ export const imageProcessingSchema = z
       ),
 
     crop: z
-      .enum(['fill', 'fit', 'contain'], {
+      .enum(['cover', 'contain', 'fill'], {
         errorMap: () => ({
-          message: 'crop must be one of: fill, fit, contain',
+          message: 'crop must be one of: cover, contain, fill',
         }),
       })
       .optional(),

@@ -83,7 +83,7 @@ export class ImageProcessor {
           height: options.height,
         };
 
-        // Apply crop mode
+        // Apply crop mode (default: fill)
         if (options.crop) {
           switch (options.crop) {
             case 'cover':
@@ -99,9 +99,8 @@ export class ImageProcessor {
               break;
           }
         } else {
-          // Default behavior: maintain aspect ratio, fit within bounds
-          resizeOptions.fit = 'inside';
-          resizeOptions.withoutEnlargement = true;
+          // Default: fill - stretch to exact dimensions
+          resizeOptions.fit = 'fill';
         }
 
         pipeline = pipeline.resize(resizeOptions);

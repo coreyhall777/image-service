@@ -41,20 +41,34 @@ describe('ImageProcessor', () => {
   });
 
   describe('Resizing', () => {
-    it('should resize to specific width', async () => {
+    it('should resize to specific width with fill (default)', async () => {
       const input = await createTestImage(200, 100);
       const result = await processor.process(input, { width: 50 });
 
+      // With fill default and only width specified, height becomes 50 (stretched)
       expect(result.width).toBe(50);
-      expect(result.height).toBe(25); // Maintains aspect ratio
+      expect(result.height).toBe(100); // Only width constraint, height unchanged
     });
 
-    it('should resize to specific height', async () => {
+    it('should resize to specific height with fill (default)', async () => {
       const input = await createTestImage(200, 100);
       const result = await processor.process(input, { height: 50 });
 
-      expect(result.width).toBe(100); // Maintains aspect ratio
+      // With fill default and only height specified
+      expect(result.width).toBe(200); // Only height constraint, width unchanged
       expect(result.height).toBe(50);
+    });
+
+    it('should resize to both width and height with default fill', async () => {
+      const input = await createTestImage(200, 100);
+      const result = await processor.process(input, {
+        width: 100,
+        height: 100,
+      });
+
+      // Default fill: stretched to exact dimensions
+      expect(result.width).toBe(100);
+      expect(result.height).toBe(100);
     });
 
     it('should resize to both width and height with cover crop', async () => {
@@ -81,7 +95,7 @@ describe('ImageProcessor', () => {
       expect(result.height).toBe(100);
     });
 
-    it('should resize with fill crop', async () => {
+    it('should resize with fill crop (explicit)', async () => {
       const input = await createTestImage(200, 100);
       const result = await processor.process(input, {
         width: 100,
@@ -93,12 +107,13 @@ describe('ImageProcessor', () => {
       expect(result.height).toBe(100);
     });
 
-    it('should not enlarge image by default', async () => {
+    it('should allow enlargement with fill (default)', async () => {
       const input = await createTestImage(50, 50);
-      const result = await processor.process(input, { width: 200 });
+      const result = await processor.process(input, { width: 200, height: 200 });
 
-      expect(result.width).toBe(50); // Not enlarged
-      expect(result.height).toBe(50);
+      // Fill allows enlargement
+      expect(result.width).toBe(200);
+      expect(result.height).toBe(200);
     });
   });
 
@@ -163,15 +178,17 @@ describe('ImageProcessor', () => {
   });
 
   describe('Combined operations', () => {
-    it('should resize and convert format', async () => {
+    it('should resize and convert format with fill default', async () => {
       const input = await createTestImage(200, 100, 'png');
       const result = await processor.process(input, {
         width: 100,
+        height: 100,
         format: 'jpeg',
       });
 
+      // Fill default: exact dimensions
       expect(result.width).toBe(100);
-      expect(result.height).toBe(50);
+      expect(result.height).toBe(100);
       expect(result.contentType).toBe('image/jpeg');
     });
 
@@ -179,12 +196,14 @@ describe('ImageProcessor', () => {
       const input = await createTestImage(200, 100, 'png');
       const result = await processor.process(input, {
         width: 50,
+        height: 50,
         format: 'webp',
         quality: 80,
       });
 
+      // Fill default: exact dimensions
       expect(result.width).toBe(50);
-      expect(result.height).toBe(25);
+      expect(result.height).toBe(50);
       expect(result.contentType).toBe('image/webp');
     });
   });

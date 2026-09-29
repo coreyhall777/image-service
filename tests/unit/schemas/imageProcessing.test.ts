@@ -327,13 +327,13 @@ describe('Image Processing Schema', () => {
       expect(result.crop).toBe('fill');
     });
 
-    it('should accept fit crop mode', () => {
+    it('should accept cover crop mode', () => {
       const result = imageProcessingSchema.parse({
         url: 'https://example.com/image.jpg',
-        crop: 'fit',
+        crop: 'cover',
       });
 
-      expect(result.crop).toBe('fit');
+      expect(result.crop).toBe('cover');
     });
 
     it('should accept contain crop mode', () => {
@@ -351,7 +351,7 @@ describe('Image Processing Schema', () => {
           url: 'https://example.com/image.jpg',
           crop: 'scale',
         })
-      ).toThrow('crop must be one of: fill, fit, contain');
+      ).toThrow('crop must be one of: cover, contain, fill');
     });
 
     it('should accept crop as optional', () => {

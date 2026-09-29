@@ -9,7 +9,7 @@ describe('API Endpoints', () => {
     expect(response.status).toBe(200);
     expect(response.body).toHaveProperty('message');
     expect(response.body).toHaveProperty('version');
-    expect(response.body).toHaveProperty('status');
+    expect(response.body).toHaveProperty('endpoints');
   });
 
   it('should return 404 for non-existent endpoints', async () => {

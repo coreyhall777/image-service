@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { requestLogger } from './middleware/requestLogger.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import imageRoutes from './routes/imageRoutes.js';
 
 const app = express();
 
@@ -11,12 +12,18 @@ app.use(requestLogger);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Routes
+app.use(imageRoutes);
+
 // Root endpoint
 app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({
     message: 'Image Processing Service API',
     version: '1.0.0',
-    status: 'Service is running. Available endpoints will be listed once implemented.',
+    endpoints: {
+      process:
+        'GET /process?url=<image-url>&width=<w>&height=<h>&format=<fmt>&quality=<q>&crop=<mode>',
+    },
   });
 });
 
