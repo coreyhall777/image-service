@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { CONFIG } from '../utils/constants';
+import { CONFIG } from '../utils/constants.js';
 
 interface CacheEntry {
   buffer: Buffer;

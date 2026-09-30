@@ -1,8 +1,8 @@
 import https from 'https';
 import http from 'http';
 import { URL } from 'url';
-import { CONFIG } from '../utils/constants';
-import { BadRequestError, UnprocessableEntityError } from '../utils/errors';
+import { CONFIG } from '../utils/constants.js';
+import { BadRequestError, UnprocessableEntityError } from '../utils/errors.js';
 
 export interface FetchImageResult {
   buffer: Buffer;
@@ -10,14 +10,19 @@ export interface FetchImageResult {
   contentLength: number;
 }
 
+export interface FetchOptions {
+  allowedContentTypes?: string[];
+}
+
 const ALLOWED_PROTOCOLS = ['http:', 'https:'];
-const ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const DEFAULT_ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export class ImageFetcher {
   /**
    * Fetch an image from a URL with validation and size limits
    */
-  async fetch(urlString: string): Promise<FetchImageResult> {
+  async fetch(urlString: string, options: FetchOptions = {}): Promise<FetchImageResult> {
+    const allowedContentTypes = options.allowedContentTypes || DEFAULT_ALLOWED_CONTENT_TYPES;
     // Validate URL format
     let parsedUrl: URL;
     try {
@@ -95,13 +100,9 @@ export class ImageFetcher {
 
             // Validate content type
             const contentType = response.headers['content-type']?.toLowerCase() || '';
-            if (!ALLOWED_CONTENT_TYPES.some((type) => contentType.startsWith(type))) {
+            if (!allowedContentTypes.some((type) => contentType.startsWith(type))) {
               request.destroy();
-              safeReject(
-                new UnprocessableEntityError(
-                  `Unsupported content type: ${contentType}. Only JPEG, PNG, and WebP images are supported`
-                )
-              );
+              safeReject(new UnprocessableEntityError(`Unsupported content type: ${contentType}`));
               return;
             }
 

@@ -64,3 +64,12 @@ export const ALLOWED_CONTENT_TYPES = [
   'image/png',
   'image/webp',
 ] as const;
+
+export const ALLOWED_VIDEO_CONTENT_TYPES = [
+  'video/mp4',
+  'video/mpeg',
+  'video/quicktime',
+  'video/x-msvideo',
+  'video/x-matroska',
+  'video/webm',
+] as const;

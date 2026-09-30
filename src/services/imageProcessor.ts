@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { UnprocessableEntityError } from '../utils/errors';
+import { UnprocessableEntityError } from '../utils/errors.js';
 
 export type ImageFormat = 'jpeg' | 'png' | 'webp';
 export type CropMode = 'cover' | 'contain' | 'fill';

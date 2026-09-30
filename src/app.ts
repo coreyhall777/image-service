@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { requestLogger } from './middleware/requestLogger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import imageRoutes from './routes/imageRoutes.js';
+import videoRoutes from './routes/videoRoutes.js';
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use(imageRoutes);
+app.use('/video', videoRoutes);
 
 // Root endpoint
 app.get('/', (_req: Request, res: Response) => {
@@ -23,6 +25,8 @@ app.get('/', (_req: Request, res: Response) => {
     endpoints: {
       process:
         'GET /process?url=<image-url>&width=<w>&height=<h>&format=<fmt>&quality=<q>&crop=<mode>',
+      videoThumbnail:
+        'GET /video/thumbnail?url=<video-url>&time=<t>&width=<w>&height=<h>&format=<fmt>&quality=<q>',
     },
   });
 });
