@@ -100,7 +100,8 @@ export class ImageFetcher {
 
             // Validate content type
             const contentType = response.headers['content-type']?.toLowerCase() || '';
-            if (!allowedContentTypes.some((type) => contentType.startsWith(type))) {
+            const mediaType = contentType.split(';')[0].trim();
+            if (!allowedContentTypes.includes(mediaType)) {
               request.destroy();
               safeReject(new UnprocessableEntityError(`Unsupported content type: ${contentType}`));
               return;
