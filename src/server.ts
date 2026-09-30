@@ -1,6 +1,9 @@
-import 'dotenv/config';
-import app from './app.js';
-import { CONFIG } from './utils/constants.js';
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Use dynamic import to ensure env vars are loaded before constants are evaluated
+const { default: app } = await import('./app.js');
+const { CONFIG } = await import('./utils/constants.js');
 
 const PORT = CONFIG.PORT;
 
